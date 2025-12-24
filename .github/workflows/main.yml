@@ -1,0 +1,36 @@
+name: HRM Attendance
+
+on:
+  schedule:
+    # Times are in UTC! 
+    # Bangladesh is UTC+6.
+    # 9:00 AM BD = 03:00 UTC
+    # 6:00 PM BD = 12:00 UTC
+    - cron: '0 3 * * *'  # Runs at 9:00 AM BD Time
+    - cron: '0 12 * * *' # Runs at 6:00 PM BD Time
+  
+  # Allows you to run it manually to test
+  workflow_dispatch:
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run Attendance Script
+        env:
+          HRM_EMAIL: ${{ secrets.HRM_EMAIL }}
+          HRM_PASSWORD: ${{ secrets.HRM_PASSWORD }}
+        run: python attendance.py

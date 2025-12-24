@@ -33,4 +33,4 @@ jobs:
         env:
           HRM_EMAIL: ${{ secrets.HRM_EMAIL }}
           HRM_PASSWORD: ${{ secrets.HRM_PASSWORD }}
-        run: python hrm-automation/attendance.py
+        run: python attendance.py

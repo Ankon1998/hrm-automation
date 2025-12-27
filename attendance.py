@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime # <--- NEW IMPORT
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -40,64 +41,66 @@ def run_attendance():
 
         # --- SMART BUTTON FINDER ---
         print("   Looking for any clickable 'Punch' or 'Clock' elements...")
-        
         candidates = driver.find_elements(By.XPATH, "//button[descendant-or-self::*[contains(text(), 'Punch') or contains(text(), 'Clock')]]")
-        
         if len(candidates) == 0:
             candidates = driver.find_elements(By.XPATH, "//a[contains(text(), 'Punch') or contains(text(), 'Clock')]")
 
-        print(f"   Found {len(candidates)} potential buttons. Testing them one by one...")
-
         popup_opened = False
-
         for index, btn in enumerate(candidates):
             try:
-                print(f"   [Candidate {index+1}] Text: '{btn.text}'")
                 driver.execute_script("arguments[0].scrollIntoView();", btn)
                 time.sleep(1)
                 driver.execute_script("arguments[0].click();", btn)
-                print("      Clicked. Waiting for popup...")
                 time.sleep(3)
 
-                # Check if Popup appeared
                 modals = driver.find_elements(By.CSS_SELECTOR, ".modal-footer")
                 if len(modals) > 0 and modals[0].is_displayed():
                     print("      SUCCESS: Popup detected!")
                     popup_opened = True
                     break 
-                else:
-                    print("      No popup. Trying next candidate...")
-            
-            except Exception as e:
-                print(f"      Failed to click candidate {index+1}: {e}")
+            except:
+                pass
 
         if not popup_opened:
             raise Exception("Tried all buttons, but popup never opened.")
 
-        # --- HANDLING POPUP (FIXED SECTION) ---
+        # --- HANDLING POPUP ---
         print("5. Confirming Attendance...")
         
-        # OLD LOGIC (Failed): looked for .btn-warning (Orange only)
-        # NEW LOGIC (Robust): Looks for the button in the footer that is NOT 'Cancel'
-        
-        # This XPath says: "Find a button inside .modal-footer that does NOT contain the text 'Cancel'"
+        # Find the Action Button (Not Cancel)
         final_xpath = "//div[contains(@class, 'modal-footer')]//button[not(contains(text(), 'Cancel'))]"
-        
         confirm_btn = wait.until(EC.element_to_be_clickable((By.XPATH, final_xpath)))
         
-        print(f"   Found Final Button: '{confirm_btn.text}' (Color/Class doesn't matter now)")
+        # --- 🛡️ SAFETY LOGIC START 🛡️ ---
+        btn_text = confirm_btn.text.lower()
+        current_hour = datetime.now().hour # Gets current hour (0-23)
+        
+        print(f"   Detected Button Action: '{confirm_btn.text}'")
+        print(f"   Current Hour: {current_hour}:00")
+
+        # RULE 1: MORNING (Before 2 PM / 14:00)
+        # If it's morning, we expect to see "In". If we see "Out", STOP.
+        if current_hour < 14:
+            if "out" in btn_text:
+                print("⚠️ SAFETY STOP: It is Morning, but button says 'Punch Out'. You are already clocked in.")
+                return # Stops the script here
+
+        # RULE 2: EVENING (After 2 PM / 14:00)
+        # If it's evening, we expect to see "Out". If we see "In", STOP.
+        else:
+            if "in" in btn_text:
+                print("⚠️ SAFETY STOP: It is Evening, but button says 'Punch In'. Preventing accidental new shift.")
+                return # Stops the script here
+        # --- 🛡️ SAFETY LOGIC END 🛡️ ---
+
+        print(f"   Safety Check Passed. Clicking...")
         driver.execute_script("arguments[0].click();", confirm_btn)
         
         print("SUCCESS: Attendance Action Completed!")
         time.sleep(5)
 
     except Exception as e:
-        print("\n--- ERROR DIAGNOSIS ---")
-        try:
-            print(f"Current Page Title: {driver.title}")
-        except:
-            pass
-        print(f"Error details: {e}")
+        print(f"\n--- ERROR: {e}")
         raise e 
     finally:
         driver.quit()

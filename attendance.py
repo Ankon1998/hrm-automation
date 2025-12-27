@@ -17,7 +17,11 @@ def run_attendance():
     print("1. Launching Browser...")
     
     chrome_options = Options()
-    # chrome_options.add_argument("--headless") # Optional: Comment out to see it running locally
+    
+    # --- IMPORTANT: HEADLESS MUST BE ON FOR GITHUB ACTIONS ---
+    chrome_options.add_argument("--headless") 
+    
+    # Standard Cloud Settings
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
@@ -39,29 +43,29 @@ def run_attendance():
         print("4. Checking Dashboard...")
         time.sleep(10) 
         
-        # --- FIXED: LOOP UNTIL POPUP IS TRULY VISIBLE ---
+        # --- ROBUST POPUP CLICKING LOOP ---
         popup_visible = False
         
-        # We try 3 times to open the popup
+        # Try 3 times to open the popup
         for attempt in range(1, 4):
             print(f"   Attempt {attempt}: Clicking Dashboard Punch Button...")
             
             try:
                 # 1. Find and Click the Dashboard Button
                 main_btn = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Punch') or contains(text(), 'Clock')]")))
-                driver.execute_script("arguments[0].click();", main_btn) # Use JS Click for reliability
+                driver.execute_script("arguments[0].click();", main_btn) 
                 
-                # 2. Wait a moment for animation
+                # 2. Wait for animation
                 time.sleep(3)
                 
-                # 3. Check if the ORANGE button is actually VISIBLE
-                # We look for the button inside the modal-footer
+                # 3. Check if the ORANGE button is VISIBLE
                 orange_btns = driver.find_elements(By.CSS_SELECTOR, ".modal-footer button.btn-warning")
                 
+                # We check if it exists AND is displayed (visible to the eye)
                 if len(orange_btns) > 0 and orange_btns[0].is_displayed():
                     print("   Popup opened successfully!")
                     popup_visible = True
-                    break # Stop looping, we found it!
+                    break 
                 else:
                     print("   Popup not visible yet. Retrying...")
                     
@@ -75,7 +79,7 @@ def run_attendance():
         # --- HANDLING POPUP ---
         print("5. Confirming Attendance...")
         
-        # Re-find the button to be safe
+        # Find the button again to be safe
         confirm_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".modal-footer button.btn-warning")))
         
         print(f"   Clicking: {confirm_btn.text}")
@@ -86,7 +90,11 @@ def run_attendance():
 
     except Exception as e:
         print("\n--- ERROR DIAGNOSIS ---")
-        print(f"Failed on page: {driver.title}")
+        # Check if driver is still alive before asking for title
+        try:
+            print(f"Failed on page: {driver.title}")
+        except:
+            print("Failed (Browser crashed or closed)")
         print(f"Error details: {e}")
         raise e 
     finally:

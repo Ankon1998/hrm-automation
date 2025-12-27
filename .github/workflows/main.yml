@@ -2,19 +2,23 @@ name: HRM Attendance
 
 on:
   schedule:
-    # Times are in UTC! 
-    # Bangladesh is UTC+6.
-    # 9:00 AM BD = 03:00 UTC
-    # 6:00 PM BD = 12:00 UTC
-    - cron: '0 3 * * *'  # Runs at 9:00 AM BD Time
-    - cron: '0 12 * * *' # Runs at 6:00 PM BD Time
+    # 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+    # We list 0,1,2,3,5,6 to skip 4 (Thursday)
+    
+    # 9:00 AM BD Time (03:00 UTC) - Excludes Thursday
+    - cron: '0 3 * * 0,1,2,3,5,6'
+    
+    # 6:00 PM BD Time (12:00 UTC) - Excludes Thursday
+    - cron: '0 12 * * 0,1,2,3,5,6'
   
   # Allows you to run it manually to test
   workflow_dispatch:
 
 jobs:
   run-script:
-    runs-on: ubuntu-latest
+    # IMPORTANT: Keep this as 'self-hosted' so it runs on your laptop 
+    # and bypasses the 404 Geo-Block error.
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code

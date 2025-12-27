@@ -16,7 +16,7 @@ PASSWORD = os.environ.get('HRM_PASSWORD')
 def run_attendance():
     print("1. Launching Browser...")
     chrome_options = Options()
-    chrome_options.add_argument("--headless") # Headless ON for Cloud
+    chrome_options.add_argument("--headless") 
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--window-size=1920,1080")
@@ -36,42 +36,35 @@ def run_attendance():
         driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
 
         print("4. Checking Dashboard...")
-        time.sleep(10) # Let dashboard load completely
+        time.sleep(10) 
 
         # --- SMART BUTTON FINDER ---
         print("   Looking for any clickable 'Punch' or 'Clock' elements...")
         
-        # 1. Find ALL buttons/links that contain "Punch" or "Clock"
-        # We use a recursive text search to find text inside <span> or <div> inside buttons
         candidates = driver.find_elements(By.XPATH, "//button[descendant-or-self::*[contains(text(), 'Punch') or contains(text(), 'Clock')]]")
         
         if len(candidates) == 0:
-            print("   WARNING: No buttons found with 'Punch/Clock'. Trying generic links...")
             candidates = driver.find_elements(By.XPATH, "//a[contains(text(), 'Punch') or contains(text(), 'Clock')]")
 
         print(f"   Found {len(candidates)} potential buttons. Testing them one by one...")
 
         popup_opened = False
 
-        # 2. Try clicking them one by one
         for index, btn in enumerate(candidates):
             try:
-                print(f"   [Candidate {index+1}] Text: '{btn.text}' | Tag: {btn.tag_name}")
-                
-                # Scroll to button and Click
+                print(f"   [Candidate {index+1}] Text: '{btn.text}'")
                 driver.execute_script("arguments[0].scrollIntoView();", btn)
                 time.sleep(1)
                 driver.execute_script("arguments[0].click();", btn)
                 print("      Clicked. Waiting for popup...")
                 time.sleep(3)
 
-                # 3. Check if Popup appeared
-                # Look for the modal footer (which only exists in the popup)
+                # Check if Popup appeared
                 modals = driver.find_elements(By.CSS_SELECTOR, ".modal-footer")
                 if len(modals) > 0 and modals[0].is_displayed():
                     print("      SUCCESS: Popup detected!")
                     popup_opened = True
-                    break # Stop clicking, we found the right one!
+                    break 
                 else:
                     print("      No popup. Trying next candidate...")
             
@@ -79,18 +72,20 @@ def run_attendance():
                 print(f"      Failed to click candidate {index+1}: {e}")
 
         if not popup_opened:
-            # Debug: Print page source if it fails completely
-            print("   DUMPING HTML FOR DEBUGGING (Partial)...")
-            print(driver.page_source[:2000]) # Print first 2000 chars
             raise Exception("Tried all buttons, but popup never opened.")
 
-        # --- HANDLING POPUP ---
+        # --- HANDLING POPUP (FIXED SECTION) ---
         print("5. Confirming Attendance...")
         
-        # Find the ORANGE button inside the modal footer
-        confirm_btn = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".modal-footer button.btn-warning")))
+        # OLD LOGIC (Failed): looked for .btn-warning (Orange only)
+        # NEW LOGIC (Robust): Looks for the button in the footer that is NOT 'Cancel'
         
-        print(f"   Clicking Final Button: {confirm_btn.text}")
+        # This XPath says: "Find a button inside .modal-footer that does NOT contain the text 'Cancel'"
+        final_xpath = "//div[contains(@class, 'modal-footer')]//button[not(contains(text(), 'Cancel'))]"
+        
+        confirm_btn = wait.until(EC.element_to_be_clickable((By.XPATH, final_xpath)))
+        
+        print(f"   Found Final Button: '{confirm_btn.text}' (Color/Class doesn't matter now)")
         driver.execute_script("arguments[0].click();", confirm_btn)
         
         print("SUCCESS: Attendance Action Completed!")

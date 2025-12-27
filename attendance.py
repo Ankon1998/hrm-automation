@@ -9,7 +9,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 
 # --- CONFIGURATION ---
-HRM_LOGIN_URL = "https://hrm.techlandbd.net/login"
+HRM_LOGIN_URL = "https://hrm.techlandbd.net"
 EMAIL = os.environ.get('HRM_EMAIL')
 PASSWORD = os.environ.get('HRM_PASSWORD')
 

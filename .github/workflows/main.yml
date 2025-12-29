@@ -2,15 +2,22 @@ name: HRM Attendance
 
 on:
   schedule:
-    # Run at 9:00 AM BD (03:00 UTC) and 6:00 PM BD (12:00 UTC)
-    # Skip Thursday (Sunday-Wednesday + Friday-Saturday)
+    # 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    # We use 0,1,2,3,5,6 to run every day EXCEPT Thursday (4)
+    
+    # 9:00 AM BD Time (03:00 UTC)
     - cron: '0 3 * * 0,1,2,3,5,6'
+    
+    # 6:00 PM BD Time (12:00 UTC)
     - cron: '0 12 * * 0,1,2,3,5,6'
+  
+  # Allows manual testing button
   workflow_dispatch:
 
 jobs:
   run-script:
-    runs-on: ubuntu-latest  # <--- Cloud Server (Free & 24/7)
+    # "ubuntu-latest" runs on GitHub Cloud (Free, 24/7, No PC needed)
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code

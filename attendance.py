@@ -50,53 +50,72 @@ def run_attendance():
 
         # --- SMART BUTTON FINDER ---
         print("   Looking for 'Punch' buttons...")
+        # Recursively find any button containing "Punch" or "Clock"
         candidates = driver.find_elements(By.XPATH, "//button[descendant-or-self::*[contains(text(), 'Punch') or contains(text(), 'Clock')]]")
+        
+        # Fallback if no <button> tags found
         if not candidates:
             candidates = driver.find_elements(By.XPATH, "//a[contains(text(), 'Punch') or contains(text(), 'Clock')]")
 
         popup_opened = False
+        
+        # Try clicking candidates one by one until popup opens
         for btn in candidates:
             try:
                 driver.execute_script("arguments[0].scrollIntoView();", btn)
                 time.sleep(1)
                 driver.execute_script("arguments[0].click();", btn)
                 time.sleep(3)
+                
+                # Check if popup appeared
                 if driver.find_elements(By.CSS_SELECTOR, ".modal-footer"):
                     print("      SUCCESS: Popup detected!")
                     popup_opened = True
                     break 
-            except: pass
+            except: 
+                pass
 
         if not popup_opened:
-            raise Exception("Popup never opened.")
+            raise Exception("Popup never opened. Could not find valid Punch button.")
 
         # --- HANDLING POPUP ---
         print("5. Confirming Attendance...")
+        
+        # Find the button that is NOT 'Cancel'
         final_xpath = "//div[contains(@class, 'modal-footer')]//button[not(contains(text(), 'Cancel'))]"
         confirm_btn = wait.until(EC.element_to_be_clickable((By.XPATH, final_xpath)))
         
-        # --- SAFETY CHECK ---
+        # --- SAFETY CHECK (PREVENTS ACCIDENTAL CLOCK-OUT) ---
         btn_text = confirm_btn.text.lower()
-        current_hour = datetime.now().hour + 6 # Convert UTC to BD Time roughly
-        if current_hour >= 24: current_hour -= 24
         
-        print(f"   Action: '{confirm_btn.text}' | Est BD Hour: {current_hour}")
+        # Server is UTC, so add 6 hours for Bangladesh Time
+        bd_hour = datetime.now().hour + 6 
+        if bd_hour >= 24: bd_hour -= 24
+        
+        print(f"   Action: '{confirm_btn.text}' | Est BD Hour: {bd_hour}:00")
 
-        if current_hour < 14 and "out" in btn_text:
-            print("⚠️ STOP: Morning but button says 'Out'.")
-            return
-        elif current_hour >= 14 and "in" in btn_text:
-            print("⚠️ STOP: Evening but button says 'In'.")
+        # Morning Rule (Before 2 PM): Only allow "In"
+        if bd_hour < 14 and "out" in btn_text:
+            print("⚠️ STOP: It is Morning but button says 'Out'. You are already clocked in.")
             return
 
+        # Evening Rule (After 2 PM): Only allow "Out"
+        elif bd_hour >= 14 and "in" in btn_text:
+            print("⚠️ STOP: It is Evening but button says 'In'. Preventing accidental new shift.")
+            return
+
+        # Click the button
         driver.execute_script("arguments[0].click();", confirm_btn)
         print("SUCCESS: Action Completed!")
         time.sleep(5)
 
     except Exception as e:
         print(f"\n--- ERROR: {e}")
-        # Capture HTML to see if we got the 404 again
-        print(f"Page Title: {driver.title}") 
+        # Print page title to debug blocks
+        try:
+            print(f"Page Title: {driver.title}") 
+        except:
+            pass
         raise e 
     finally:
         driver.quit()
